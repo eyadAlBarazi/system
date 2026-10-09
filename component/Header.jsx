@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/app/context/CartContext";
 
 function Header() {
@@ -10,7 +10,8 @@ function Header() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
-  const { cart } = useCart();
+  const router = useRouter();
+  const { cart, clearCart } = useCart();
   const cartCount = cart.reduce(
     (count, item) => count + (Number(item.quantity) || 0),
     0,
@@ -42,9 +43,14 @@ function Header() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/logout", { method: "POST" });
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } finally {
-      window.location.href = "/Login";
+      clearCart({ preserveStorage: true });
+      localStorage.removeItem("cart:guest");
+      router.push("/Login");
     }
   };
 

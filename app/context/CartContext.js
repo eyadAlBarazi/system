@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const CartContext = createContext(null);
 
@@ -8,8 +9,11 @@ export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [cartKey, setCartKey] = useState(null);
+  const pathname = usePathname();
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadUserCart() {
       try {
         const res = await fetch("/api/auth/me", {
@@ -19,19 +23,32 @@ export function CartProvider({ children }) {
         const nextCartKey = `cart:${user?._id || "guest"}`;
         const saved = localStorage.getItem(nextCartKey);
 
+        if (cancelled) {
+          return;
+        }
+
         setCartKey(nextCartKey);
         setCart(saved ? JSON.parse(saved) : []);
       } catch (error) {
         console.error("فشل تحميل السلة:", error);
+        if (cancelled) {
+          return;
+        }
         setCartKey("cart:guest");
         setCart([]);
       } finally {
-        setIsLoaded(true);
+        if (!cancelled) {
+          setIsLoaded(true);
+        }
       }
     }
 
     loadUserCart();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (isLoaded && cartKey) {
@@ -63,9 +80,11 @@ export function CartProvider({ children }) {
   }
 
   
-  function clearCart() {
+  function clearCart({ preserveStorage = false } = {}) {
     setCart([]);
-    if (cartKey) {
+    if (preserveStorage) {
+      setCartKey(null);
+    } else if (cartKey) {
       localStorage.removeItem(cartKey);
     }
   }
